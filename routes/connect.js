@@ -1,15 +1,15 @@
-let mysql = require('mysql');
-let conn = mysql.createConnection({
-    host: 'localhost:3306',
-    user: 'THSCM',
-    password: 'b21w5Kr6_',
-    database: 'lsssmart_booking_slot'
-})
+// let mysql = require('mysql');
+// let conn = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'root',
+//     password: '',
+//     database: 'booking_slot'
+// })
 
-conn.connect((err) => {
+// conn.connect((err) => {
 
-    if (err) throw err;
-    console.log('connect database successfully');
-})
+//     if (err) throw err;
+//     console.log('connect database successfully');
+// })
 
-module.exports = conn;
+// module.exports = conn;

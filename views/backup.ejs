@@ -1,0 +1,174 @@
+<%- include('header') %>
+
+<div class="min-h-screen bg-gray-50 px-6 py-6 flex flex-col lg:flex-row gap-6">
+
+  <!-- Input Scan Area -->
+  <div class="bg-white w-full max-w-sm rounded-xl shadow-md p-6 flex flex-col gap-4">
+    <h2 class="text-lg font-semibold text-gray-800">สแกน Delivery Order</h2>
+    <input 
+      id="barcodeInput"
+      type="text"
+      placeholder="Scan barcode here"
+      class="w-full text-center text-sm border border-gray-300 rounded-lg py-2 px-3 
+             focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+    >
+    <p class="text-xs text-gray-400">โปรดกด Enter หลังจากสแกนบาร์โค้ด</p>
+
+    <div class="flex flex-col mt-6 gap-2 text-sm">
+        <span class="font-bold rounded-lg">Forwarder</span>
+        <select class="border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" name="" id=""></select>
+        <span class="font-bold">Username</span>
+        <select class="border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" name="" id=""></select>
+    </div>
+
+    <!-- radio -->
+    <span class="font-bold text-sm">Channel</span>
+    <div class="text-sm">
+        <input type="radio" name="channel" value="direct">
+        <label for="direct">ส่งตรง</label><br>
+        <input type="radio" name="channel" value="hub">
+        <label for="hub">เข้าฮับ</label>
+    </div>
+
+    <!-- Button -->
+    <button 
+        id="btnSubmit"
+        class="bg-red-600 hover:bg-red-500 text-white text-sm font-bold rounded-lg mt-2 p-2 transition duration-300">
+    ส่งข้อมูล
+    </button>
+
+  </div>
+
+  <!-- Table Area -->
+  <div class="flex-1 bg-white rounded-xl shadow-md p-6 overflow-auto">
+    <h2 class="text-lg font-semibold text-gray-800 mb-2">รายการที่สแกนแล้ว</h2>
+    <p class="text-sm text-gray-500 mb-4">รวมทั้งหมด: <span id="countScanned" class="font-bold text-blue-600">0</span> บิล</p>
+
+    <div class="max-h-96 overflow-y-auto">
+    <table class="table-auto border-separate border-spacing-y-2 w-full">
+      <thead>
+        <tr class="sticky top-0 text-left text-sm text-gray-600 bg-gray-200">
+          <th class="px-4 py-2 rounded-l-full">#</th>
+          <th class="px-4 py-2">Delivery Number</th>
+          <th class="px-4 py-2 rounded-r-full text-center">Action</th>
+        </tr>
+      </thead>
+      <tbody id="barcodeTableBody">
+        <!-- บาร์โค้ดจะแสดงที่นี่ -->
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+
+  let input = document.getElementById('barcodeInput');
+  let tableBody = document.getElementById('barcodeTableBody');
+  let countDisplay = document.getElementById('countScanned');
+  let btnSubmit = document.getElementById('btnSubmit');
+  let counter = 1
+  let scannedSet = new Set()
+
+  // หลังจากกดปุ่ม Enter
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      const value = input.value.trim();
+      if (Number(value) && !scannedSet.has(value)) {
+        scannedSet.add(value);
+
+        // Create Element สำหรับ node ลูก
+        let row = document.createElement('tr');
+        row.className = "bg-gray-50 hover:bg-gray-100 transition rounded";  
+
+        row.innerHTML = `
+        <td class="px-4">${counter++}</td>
+        <td class="px-4 font-mono text-blue-900">${value}</td>
+        <td class="px-4 text-center">
+          <button class="bg-red-600 hover:bg-red-500 text-white text-bold text-sm rounded-full px-3 py-1"
+            onclick="removeRow(this, '${value}')">
+            ลบ
+          </button>
+        </td>
+        `
+
+        // เพิ่ม node ลูก เข้าไปที่ node พ่อ (เพิ่ม body)
+        tableBody.appendChild(row);
+        input.value = '';
+        input.focus()
+        updateCount();
+        console.log(scannedSet);
+      
+      // ถ้าหมายเลขสแกนแล้ว
+      } else if (scannedSet.has(value)) {
+
+        input.value = ''
+        alert('หมายเลขนี้ถูกสแกนแล้ว')
+      
+      // ถ้าไม่ได้กรอกตัวเลข
+      } else {
+        input.value = '';
+        alert('กรอกเฉพาะตัวเลขเท่านั้น !')
+      } 
+    }
+  })
+
+  function removeRow(button, value) {
+    const row = button.closest('tr');
+    scannedSet.delete(value);
+    row.remove();
+    updateCount();
+    console.log(scannedSet);
+  }
+
+  function updateCount() {
+    countDisplay.textContent = scannedSet.size
+  }
+
+  btnSubmit.addEventListener('click', async () => {
+    let data = Array.from(scannedSet);
+    // Send data to Server
+    if (data.length > 0) {
+      try {
+        const response = await fetch('/submitDeliveryList', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            deliveryList: data,
+            forwarder: document.querySelectorAll('select')[0].value,
+            user: document.querySelectorAll('select')[1].value,
+            channel: document.querySelectorAll('input[name="channel"]:checked')?.value
+          })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        alert('Successfully');
+        // เคลียร์ข้อมูล
+        scannedSet.clear();
+        tableBody.innerHTML = '';
+        updateCount();
+      } else {
+        alert('Error : ' + result.message);
+      }
+
+      } catch (error) {
+        console.log(error);
+        alert('Can not connect to server')
+      }
+      
+    } else {
+      alert('ไม่พบข้อมูล')
+    }
+  })
+
+
+</script>
+
+
+<%- include('footer') %>
